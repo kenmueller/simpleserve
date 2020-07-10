@@ -32,7 +32,7 @@ module.exports = ({
 			
 			if (!(optimize && cachedRequestValues)) {
 				try {
-					const path = join(cwd, 'pages', url)
+					const path = join(cwd, pages, url)
 					
 					cachedRequestValues = {
 						status: 200,
@@ -40,7 +40,7 @@ module.exports = ({
 						getProps: require(path)
 					}
 				} catch {
-					const path = join(cwd, 'pages', '404')
+					const path = join(cwd, pages, '404')
 					
 					cachedRequestValues = {
 						status: 404,
