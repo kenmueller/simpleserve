@@ -1,19 +1,13 @@
-const { readFile: _readFile } = require('fs')
 const { join } = require('path')
 const express = require('express')
 const { compile } = require('handlebars')
 
-const cwd = process.cwd()
+const { cwd, readFile, resolveDynamicPath } = require('./utils')
 
 const requestCache = {}
 const templateCache = {}
 
-const readFile = path =>
-	new Promise((resolve, reject) =>
-		_readFile(path, (error, data) =>
-			error ? reject(error) : resolve(data)
-		)
-	)
+let jsFilesCache
 
 module.exports = ({
 	optimize = process.env.NODE_ENV === 'production',
@@ -28,16 +22,29 @@ module.exports = ({
 				return next()
 			
 			let cachedRequestValues = requestCache[url]
-			let { path, status, getProps } = cachedRequestValues || {}
+			let { path, status, matches, getProps } = cachedRequestValues || {}
 			
 			if (!(optimize && cachedRequestValues)) {
 				try {
-					const path = join(cwd, pages, url)
-					
-					cachedRequestValues = {
-						status: 200,
-						path,
-						getProps: require(path)
+					try {
+						const path = join(cwd, pages, url)
+						
+						cachedRequestValues = {
+							status: 200,
+							path,
+							matches: null,
+							getProps: require(path)
+						}
+					} catch {
+						cachedRequestValues = resolveDynamicPath(
+							url,
+							(optimize && jsFilesCache) || (
+								jsFilesCache = await glob(join(cwd, pages, '**', '*.js'))
+							)
+						)
+						
+						if (!cachedRequestValues)
+							throw new Error() // Caught by 404
 					}
 				} catch {
 					const path = join(cwd, pages, '404')
@@ -45,17 +52,18 @@ module.exports = ({
 					cachedRequestValues = {
 						status: 404,
 						path,
+						matches: null,
 						getProps: require(path)
 					}
 				}
 				
-				;({ path, status, getProps } = (
+				;({ path, status, matches, getProps } = (
 					requestCache[url] = cachedRequestValues
 				))
 			}
 			
 			const props = typeof getProps === 'function'
-				? await getProps(req)
+				? await getProps(Object.assign(req, matches))
 				: getProps
 			
 			res.status(status)
