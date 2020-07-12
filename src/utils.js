@@ -1,5 +1,5 @@
 const { readFile: _readFile } = require('fs')
-const { sep } = require('path')
+const { sep, join } = require('path')
 const _glob = require('glob')
 const escapeRegex = require('escape-string-regexp')
 
@@ -19,27 +19,53 @@ const glob = pattern =>
 		)
 	)
 
-const resolveDynamicPath = (url, files) => {
-	for (const _match of matches) {
-		const match = `/${
-			match.replace(new RegExp(`^\/?${escapeRegex(cwd)}\/?`), '')
-		}`
+const getMatches = (fileParts, urlParts) => {
+	const matches = {}
+	
+	for (let i = 0; i < fileParts.length; i++) {
+		const filePart = fileParts[i]
+		const urlPart = urlParts[i]
 		
-		const matchParts = match.split(sep)
-		const urlParts = url.split('/')
-		
-		if (matchParts.length !== urlParts.length)
+		if (filePart === urlPart)
 			continue
 		
-		for (let i = 0; i < matchParts.length; i++) {
-			const matchPart = matchParts[i]
-			const urlPart = urlParts[i]
-			
-			if (
-				matchPart === urlPart ||
-				matchPart.startsWith(':')
-			)
+		if (filePart.startsWith(':')) {
+			matches[filePart.replace(/^:/, '')] = urlPart
+			continue
 		}
+		
+		// Unsuccessful match
+		return
+	}
+	
+	return matches
+}
+
+const resolveDynamicPath = (pages, url, files) => {
+	const urlParts = url.replace(/\/$/, '').split('/')
+	
+	for (const _file of files) {
+		const file = `/${
+			_file.replace(
+				new RegExp(`^\/?${escapeRegex(join(cwd, pages))}\/?(.*?)\.js$`),
+				'$1'
+			)
+		}`
+		
+		const fileParts = file.split(sep)
+		
+		if (fileParts.length !== urlParts.length)
+			continue
+		
+		const matches = getMatches(fileParts, urlParts)
+		
+		if (matches)
+			return {
+				status: 200,
+				path: _file,
+				matches,
+				getProps: require(_file)
+			}
 	}
 }
 

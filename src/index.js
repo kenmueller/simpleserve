@@ -2,7 +2,7 @@ const { join } = require('path')
 const express = require('express')
 const { compile } = require('handlebars')
 
-const { cwd, readFile, resolveDynamicPath } = require('./utils')
+const { cwd, readFile, glob, resolveDynamicPath } = require('./utils')
 
 const requestCache = {}
 const templateCache = {}
@@ -37,6 +37,7 @@ module.exports = ({
 						}
 					} catch {
 						cachedRequestValues = resolveDynamicPath(
+							pages,
 							url,
 							(optimize && jsFilesCache) || (
 								jsFilesCache = await glob(join(cwd, pages, '**', '*.js'))
@@ -73,7 +74,7 @@ module.exports = ({
 			if (optimize && cachedTemplate)
 				return res.send(cachedTemplate(props))
 			
-			const data = await readFile(`${path}.html`)
+			const data = await readFile(`${path.replace(/\.js$/, '')}.html`)
 				.catch(() => readFile(join(path, 'index.html')))
 			
 			res.send((templateCache[path] = compile(data.toString()))(props))
