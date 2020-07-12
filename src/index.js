@@ -63,8 +63,10 @@ module.exports = ({
 				))
 			}
 			
+			Object.assign(req.params, matches)
+			
 			const props = typeof getProps === 'function'
-				? await getProps(Object.assign(req, matches))
+				? await getProps(req)
 				: getProps
 			
 			res.status(status)
