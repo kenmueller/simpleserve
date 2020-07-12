@@ -19,12 +19,15 @@ const glob = pattern =>
 		)
 	)
 
-const getMatches = (fileParts, urlParts) => {
+const getMatches = (fileParts, urlParts, isIndex) => {
 	const matches = {}
 	
 	for (let i = 0; i < fileParts.length; i++) {
 		const filePart = fileParts[i]
 		const urlPart = urlParts[i]
+		
+		if (isIndex && (i === fileParts.length - 1) && !urlPart)
+			break
 		
 		if (filePart === urlPart)
 			continue
@@ -45,6 +48,7 @@ const resolveDynamicPath = (pages, url, files) => {
 	const urlParts = url.replace(/\/$/, '').split('/')
 	
 	for (const _file of files) {
+		const isIndex = _file.endsWith('/index.js')
 		const file = `/${
 			_file.replace(
 				new RegExp(`^\/?${escapeRegex(join(cwd, pages))}\/?(.*?)\.js$`),
@@ -54,10 +58,13 @@ const resolveDynamicPath = (pages, url, files) => {
 		
 		const fileParts = file.split(sep)
 		
-		if (fileParts.length !== urlParts.length)
+		if (!(
+			fileParts.length === urlParts.length ||
+			(isIndex && (fileParts.length - 1 === urlParts.length))
+		))
 			continue
 		
-		const matches = getMatches(fileParts, urlParts)
+		const matches = getMatches(fileParts, urlParts, isIndex)
 		
 		if (matches)
 			return {
